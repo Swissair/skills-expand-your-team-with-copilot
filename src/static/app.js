@@ -278,6 +278,115 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // Build share data for an activity
+  function buildShareData(activityName, details) {
+    const shareUrl = `${window.location.origin}${
+      window.location.pathname
+    }?activity=${encodeURIComponent(activityName)}`;
+    const schedule = formatSchedule(details);
+    const shareText = `Check out ${activityName} at Mergington High School! ${details.description} (${schedule})`;
+
+    return {
+      title: `${activityName} | Mergington High School`,
+      text: shareText,
+      url: shareUrl,
+    };
+  }
+
+  // Open social sharing links
+  function shareViaPlatform(platform, shareData) {
+    if (platform === "native") {
+      return null;
+    }
+
+    if (platform === "email") {
+      const subject = encodeURIComponent(`Check out ${shareData.title}`);
+      const body = encodeURIComponent(`${shareData.text}\n\n${shareData.url}`);
+      return `mailto:?subject=${subject}&body=${body}`;
+    }
+
+    const encodedUrl = encodeURIComponent(shareData.url);
+    const encodedText = encodeURIComponent(shareData.text);
+
+    if (platform === "facebook") {
+      return `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}&quote=${encodedText}`;
+    }
+
+    if (platform === "x") {
+      return `https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}`;
+    }
+
+    return null;
+  }
+
+  // Copy text to clipboard with a fallback
+  async function copyToClipboard(text) {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    textArea.setAttribute("readonly", "");
+    textArea.style.position = "absolute";
+    textArea.style.left = "-9999px";
+    document.body.appendChild(textArea);
+    textArea.select();
+    document.execCommand("copy");
+    document.body.removeChild(textArea);
+  }
+
+  // Handle share actions from activity cards
+  async function handleShare(event) {
+    const button = event.currentTarget;
+    const activityName = button.dataset.activity;
+    const platform = button.dataset.sharePlatform;
+    const details = allActivities[activityName];
+
+    if (!activityName || !platform || !details) {
+      showMessage("Unable to share this activity right now.", "error");
+      return;
+    }
+
+    const shareData = buildShareData(activityName, details);
+
+    if (platform === "native") {
+      if (navigator.share) {
+        try {
+          await navigator.share(shareData);
+          showMessage("Activity shared successfully!", "success");
+        } catch (error) {
+          if (error?.name !== "AbortError") {
+            showMessage("Sharing failed. Please try again.", "error");
+          }
+        }
+        return;
+      }
+
+      try {
+        await copyToClipboard(shareData.url);
+        showMessage("Share link copied to clipboard.", "success");
+      } catch (error) {
+        showMessage("Couldn't copy link. Please copy it manually.", "error");
+      }
+      return;
+    }
+
+    const shareLink = shareViaPlatform(platform, shareData);
+    if (!shareLink) {
+      showMessage("Unsupported share option.", "error");
+      return;
+    }
+
+    if (platform === "email") {
+      window.location.href = shareLink;
+      return;
+    }
+
+    window.open(shareLink, "_blank", "noopener,noreferrer");
+  }
+
   // Format schedule for display - handles both old and new format
   function formatSchedule(details) {
     // If schedule_details is available, use the structured data
@@ -568,6 +677,39 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
         `
         }
+        <div class="share-actions">
+          <button
+            class="share-button share-native"
+            data-activity="${name}"
+            data-share-platform="native"
+          >
+            Share
+          </button>
+          <button
+            class="share-button share-x"
+            data-activity="${name}"
+            data-share-platform="x"
+            aria-label="Share on X"
+          >
+            X
+          </button>
+          <button
+            class="share-button share-facebook"
+            data-activity="${name}"
+            data-share-platform="facebook"
+            aria-label="Share on Facebook"
+          >
+            Facebook
+          </button>
+          <button
+            class="share-button share-email"
+            data-activity="${name}"
+            data-share-platform="email"
+            aria-label="Share by email"
+          >
+            Email
+          </button>
+        </div>
       </div>
     `;
 
@@ -586,6 +728,11 @@ document.addEventListener("DOMContentLoaded", () => {
         });
       }
     }
+
+    const shareButtons = activityCard.querySelectorAll(".share-button");
+    shareButtons.forEach((button) => {
+      button.addEventListener("click", handleShare);
+    });
 
     activitiesList.appendChild(activityCard);
   }
