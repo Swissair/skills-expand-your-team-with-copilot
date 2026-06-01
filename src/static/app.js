@@ -280,14 +280,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Build share data for an activity
   function buildShareData(activityName, details) {
+    const safeActivityName = String(activityName || "").trim();
+    const safeDescription = String(details.description || "").trim();
     const shareUrl = `${window.location.origin}${
       window.location.pathname
-    }?activity=${encodeURIComponent(activityName)}`;
-    const schedule = formatSchedule(details);
-    const shareText = `Check out ${activityName} at Mergington High School! ${details.description} (${schedule})`;
+    }?activity=${encodeURIComponent(safeActivityName)}`;
+    const schedule = String(formatSchedule(details) || "").trim();
+    const shareText = `Check out ${safeActivityName} at Mergington High School! ${safeDescription} (${schedule})`;
 
     return {
-      title: `${activityName} | Mergington High School`,
+      title: safeActivityName,
       text: shareText,
       url: shareUrl,
     };
@@ -300,7 +302,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (platform === "email") {
-      const subject = encodeURIComponent(`Check out ${shareData.title}`);
+      const subject = encodeURIComponent(
+        `Activity at Mergington High School: ${shareData.title}`
+      );
       const body = encodeURIComponent(`${shareData.text}\n\n${shareData.url}`);
       return `mailto:?subject=${subject}&body=${body}`;
     }
@@ -333,8 +337,11 @@ document.addEventListener("DOMContentLoaded", () => {
     textArea.style.left = "-9999px";
     document.body.appendChild(textArea);
     textArea.select();
-    document.execCommand("copy");
+    const copied = document.execCommand("copy");
     document.body.removeChild(textArea);
+    if (!copied) {
+      throw new Error("Clipboard copy command failed");
+    }
   }
 
   // Handle share actions from activity cards
@@ -358,6 +365,7 @@ document.addEventListener("DOMContentLoaded", () => {
           showMessage("Activity shared successfully!", "success");
         } catch (error) {
           if (error?.name !== "AbortError") {
+            console.error("Native share failed:", error);
             showMessage("Sharing failed. Please try again.", "error");
           }
         }
@@ -682,6 +690,7 @@ document.addEventListener("DOMContentLoaded", () => {
             class="share-button share-native"
             data-activity="${name}"
             data-share-platform="native"
+            aria-label="Share activity"
           >
             Share
           </button>
