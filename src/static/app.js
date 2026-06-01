@@ -27,6 +27,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const themeToggleButton = document.getElementById("theme-toggle-button");
   const themeToggleIcon = document.getElementById("theme-toggle-icon");
   const themeToggleLabel = document.getElementById("theme-toggle-label");
+  const THEME_DARK = "dark";
+  const THEME_LIGHT = "light";
+  const VALID_THEMES = [THEME_DARK, THEME_LIGHT];
 
   // Activity categories with corresponding colors
   const activityTypes = {
@@ -121,16 +124,30 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function applyTheme(theme) {
-    const isDarkMode = theme === "dark";
+    const isDarkMode = theme === THEME_DARK;
     document.body.classList.toggle("dark-mode", isDarkMode);
     themeToggleIcon.textContent = isDarkMode ? "☀️" : "🌙";
     themeToggleLabel.textContent = isDarkMode ? "Light Mode" : "Dark Mode";
     themeToggleButton.setAttribute("aria-pressed", String(isDarkMode));
+    themeToggleButton.setAttribute(
+      "aria-label",
+      isDarkMode ? "Switch to light mode" : "Switch to dark mode"
+    );
   }
 
   function initializeTheme() {
     const savedTheme = localStorage.getItem("theme");
-    const initialTheme = savedTheme === "dark" ? "dark" : "light";
+    const prefersDarkMode =
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-color-scheme: dark)").matches;
+    let initialTheme = THEME_LIGHT;
+
+    if (VALID_THEMES.includes(savedTheme)) {
+      initialTheme = savedTheme;
+    } else if (prefersDarkMode) {
+      initialTheme = THEME_DARK;
+    }
+
     applyTheme(initialTheme);
   }
 
@@ -257,8 +274,8 @@ document.addEventListener("DOMContentLoaded", () => {
   closeLoginModal.addEventListener("click", closeLoginModalHandler);
   themeToggleButton.addEventListener("click", () => {
     const nextTheme = document.body.classList.contains("dark-mode")
-      ? "light"
-      : "dark";
+      ? THEME_LIGHT
+      : THEME_DARK;
     applyTheme(nextTheme);
     localStorage.setItem("theme", nextTheme);
   });
